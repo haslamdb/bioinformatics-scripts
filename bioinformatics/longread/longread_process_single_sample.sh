@@ -185,7 +185,7 @@ if [ "$RAW_COUNT" -eq 0 ]; then
     cp "${RAW_VCF}.tbi" "${FILTERED_VCF}.tbi"
 else
     # Apply filters - use FORMAT/DP instead of INFO/DP for Clair3 output
-    bcftools view -i 'QUAL > 20 && FORMAT/DP[0] > 10 && FORMAT/AF[0] > 0.8' "$RAW_VCF" | \
+    bcftools view -i 'QUAL > 20 && FORMAT/DP > 10 && FORMAT/AF > 0.8' "$RAW_VCF" | \
         bgzip > "$FILTERED_VCF"
     tabix "$FILTERED_VCF"
 fi
