@@ -209,7 +209,5 @@ echo "Results summary:"
 echo "  - Aligned BAM: $SORTED_BAM"
 echo "  - Raw VCF: $RAW_VCF"
 echo "  - Filtered VCF: $FILTERED_VCF"
+echo "  - QC reports: ${QC_DIR}"
 echo "  - Statistics: ${OUTPUT_DIR}/*.txt"
-echo
-echo "Note: Some QC tools (NanoPlot, Filtlong) were not available."
-echo "Consider installing them for better quality control."
