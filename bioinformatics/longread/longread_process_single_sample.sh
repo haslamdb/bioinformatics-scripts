@@ -73,14 +73,17 @@ if [ -f "$COMBINED_FASTQ" ]; then
 fi
 
 # Find all fastq files (compressed or not), concatenate them
-if find "$SAMPLE_DIR" -name "*.fastq.gz" -o -name "*.fq.gz" | head -1 | grep -q .; then
+# Check for files EXCLUDING the analysis_output directory
+if find "$SAMPLE_DIR" \( -name "*.fastq.gz" -o -name "*.fq.gz" \) ! -path "*/analysis_output/*" | head -1 | grep -q .; then
     # If we have compressed files, use zcat
+    echo "   Found compressed FASTQ files"
     find "$SAMPLE_DIR" \( -name "*.fastq.gz" -o -name "*.fq.gz" \) ! -path "*/analysis_output/*" -exec zcat {} \; | gzip > "$COMBINED_FASTQ"
-elif find "$SAMPLE_DIR" -name "*.fastq" -o -name "*.fq" | head -1 | grep -q .; then
+elif find "$SAMPLE_DIR" \( -name "*.fastq" -o -name "*.fq" \) ! -path "*/analysis_output/*" | head -1 | grep -q .; then
     # If we have uncompressed files, cat and compress
+    echo "   Found uncompressed FASTQ files"
     find "$SAMPLE_DIR" \( -name "*.fastq" -o -name "*.fq" \) ! -path "*/analysis_output/*" -exec cat {} \; | gzip > "$COMBINED_FASTQ"
 else
-    echo "ERROR: No FASTQ files found in $SAMPLE_DIR"
+    echo "ERROR: No FASTQ files found in $SAMPLE_DIR (excluding analysis_output/)"
     exit 1
 fi
 echo "-> Combined FASTQ created: $COMBINED_FASTQ"
@@ -154,7 +157,9 @@ run_clair3.sh \
     --platform="ont" \
     --model_path="/home/david/miniforge3/envs/clair3-env/bin/models/ont" \
     --output="$CLAIR3_OUTPUT" \
-    --sample_name="$SAMPLE_NAME"
+    --sample_name="$SAMPLE_NAME" \
+    --include_all_ctgs \
+    --haploid_sensitive
 
 # Check if Clair3 output exists and move it
 if [ -f "${CLAIR3_OUTPUT}/merge_output.vcf.gz" ]; then
@@ -172,15 +177,30 @@ conda activate nanopore-wgs
 
 # Filter variants for high confidence calls
 # For bacterial (haploid) genomes, we want high VAF
-bcftools view -i 'QUAL > 20 && INFO/DP > 10' "$RAW_VCF" | \
-    bcftools view -i 'FORMAT/AF[0] > 0.8' - | \
-    bgzip > "$FILTERED_VCF"
-tabix "$FILTERED_VCF"
+# Check if the raw VCF has any variants first
+RAW_COUNT=$(bcftools view -H "$RAW_VCF" 2>/dev/null | wc -l)
+if [ "$RAW_COUNT" -eq 0 ]; then
+    echo "   Warning: No variants found in raw VCF file"
+    cp "$RAW_VCF" "$FILTERED_VCF"
+    cp "${RAW_VCF}.tbi" "${FILTERED_VCF}.tbi"
+else
+    # Apply filters - use FORMAT/DP instead of INFO/DP for Clair3 output
+    bcftools view -i 'QUAL > 20 && FORMAT/DP[0] > 10 && FORMAT/AF[0] > 0.8' "$RAW_VCF" | \
+        bgzip > "$FILTERED_VCF"
+    tabix "$FILTERED_VCF"
+fi
 
 # Generate variant statistics
 echo "-> Generating variant statistics..."
-bcftools stats "$FILTERED_VCF" > "${OUTPUT_DIR}/${SAMPLE_NAME}.vcf_stats.txt"
-echo "Total variants called: $(bcftools view -H "$FILTERED_VCF" | wc -l)" >> "${OUTPUT_DIR}/${SAMPLE_NAME}.vcf_stats.txt"
+FILTERED_COUNT=$(bcftools view -H "$FILTERED_VCF" 2>/dev/null | wc -l)
+if [ "$FILTERED_COUNT" -gt 0 ]; then
+    bcftools stats "$FILTERED_VCF" > "${OUTPUT_DIR}/${SAMPLE_NAME}.vcf_stats.txt"
+    echo "Total variants called: $FILTERED_COUNT" >> "${OUTPUT_DIR}/${SAMPLE_NAME}.vcf_stats.txt"
+else
+    echo "No variants found in filtered VCF" > "${OUTPUT_DIR}/${SAMPLE_NAME}.vcf_stats.txt"
+fi
+echo "   Raw variants: $RAW_COUNT"
+echo "   Filtered variants: $FILTERED_COUNT"
 
 echo
 echo "--- SUCCESS! ---"
