@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Data files (usually too large for git)
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.fasta
+*.fa
+*.fna
+*.bam
+*.sam
+*.vcf
+*.vcf.gz
+*.bed
+*.gff
+*.gtf
+
+# Output directories
+output/
+results/
+temp/
+tmp/
+
+# Credentials and config
+*.env
+.env.local
+config.local.*
